@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "360639631772",
+    "firebase_url": "https://chatme-9c314-default-rtdb.firebaseio.com",
+    "project_id": "chatme-9c314",
+    "storage_bucket": "chatme-9c314.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:360639631772:android:22f5dbd6400315dc35f859",
+        "android_client_info": {
+          "package_name": "com.example.dream"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1Jw9W1cBmX783wZaWyIA_mCJdI81UkPM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:360639631772:android:9c5b58cb31e456d635f859",
+        "android_client_info": {
+          "package_name": "com.example.project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1Jw9W1cBmX783wZaWyIA_mCJdI81UkPM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

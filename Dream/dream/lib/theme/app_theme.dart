@@ -12,10 +12,11 @@ final ThemeData appTheme = ThemeData(
   brightness: Brightness.dark,
   primaryColor: kPrimaryColor,
   scaffoldBackgroundColor: kBackgroundColor,
+  splashColor: Colors.transparent,
+  highlightColor: Colors.transparent,
   colorScheme: ColorScheme.dark(
     primary: kPrimaryColor,
     secondary: kPurpleGradientEnd,
-    background: kBackgroundColor,
     surface: kSurfaceColor,
   ),
   textTheme: TextTheme(

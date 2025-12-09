@@ -1,621 +1,634 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dream/logic/firebase/firebaselogic.dart';
+import 'package:dream/page/chat/chatrequest/pedding.dart';
+import 'package:dream/page/setting/settingpage.dart';
+import 'package:dream/page/store/small_story.dart';
+import 'package:dream/widgets/joystickcontroller.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-// Dreamy Dark Theme Colors
-const Color kPrimaryColor = Color(0xFF100B20); // Deep Indigo
-const Color kPurpleGradientStart = Color(0xFF8B5CF6); // Purple
-const Color kPurpleGradientEnd = Color(0xFF6366F1); // Indigo
-const Color kBackgroundColor = Color(0xFF181A20); // Modern Dark Gray
-const Color kSurfaceColor = Color(0xFF23272F); // Deep Gray
-const Color kTextColor = Color(0xFFD1D5DB); // Light Gray
-
-class Homescreen extends StatefulWidget {
-  const Homescreen({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<Homescreen> createState() => _HomescreenState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _HomescreenState extends State<Homescreen> {
-  final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(() {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
-    });
-  }
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+  final String myUid = FirebaseAuth.instance.currentUser!.uid;
+  final TextEditingController friendSearchController = TextEditingController();
+  String friendSearchText = "";
+  final FocusNode friendSearchFocusNode = FocusNode();
 
   @override
   Widget build(BuildContext context) {
-    double scale = (1 - (_scrollOffset / 200)).clamp(0.7, 1.0);
-    double opacity = (1 - (_scrollOffset / 150)).clamp(0.0, 1.0);
-
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        toolbarHeight: 95,
-        leading: const Icon(Icons.menu, color: Colors.white),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.black, Colors.black],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          child: Column(
+      backgroundColor: const Color(0xFF0A0E27),
+      body: Stack(
+        children: [
+          Column(
             children: [
-              // 🔥 Top card INSIDE scroll
-              Transform.scale(
-                scale: scale,
-                child: Opacity(
-                  opacity: opacity,
-                  child: _buildMySpendingCard(context),
+              // Header with greeting
+              Container(
+                padding: const EdgeInsets.only(
+                    top: 50, left: 20, right: 20, bottom: 30),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF3B82F6),
+                      const Color(0xFF1F2937),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Messages",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "Stay connected with friends",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blueAccent.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.blueAccent.withOpacity(0.4)),
+                          ),
+                          child: const Icon(
+                            Icons.chat_bubble_outline,
+                            color: Colors.blueAccent,
+                            size: 28,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
 
-              
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 20, 15, 15),
+                child: _friendSearchBar(),
+              ),
 
-              // Transactions list scrolls naturally over the card
-              _buildRecentTransactions(),
-
-              const SizedBox(height: 600), // extra space
+              // Friends list
+              Expanded(child: _friendList()),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
 
-// Move _buildFinancialCard outside the class so it is accessible as a top-level function
-Widget _buildFinancialCard(BuildContext context, String title, String amount,
-    double percent, Color color) {
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      SizedBox(height: 8),
-      // If you have percent_indicator package:
-      // CircularPercentIndicator(
-      //   radius: 40.0,
-      //   lineWidth: 8.0,
-      //   percent: percent,
-      //   center: Text(
-      //     "${(percent * 100).toInt()}%",
-      //     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0, color: Colors.white),
-      //   ),
-      //   progressColor: color,
-      //   backgroundColor: color.withOpacity(0.3),
-      // ),
-      // If you don't have percent_indicator, use a placeholder:
-      Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: CircularProgressIndicator(
-              value: percent,
-              strokeWidth: 6,
-              color: color,
-              backgroundColor: color.withOpacity(0.3),
+          // Bottom-center joystick
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: AnimatedJoystick(
+              onAddFriendPressed: () {
+                _showAddFriendDialog();
+              },
+              checkPendingRequests: () {
+                return Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      transitionDuration: Duration(milliseconds: 450),
+                      pageBuilder: (_, __, ___) =>
+                          PendingRequestsPage(myUid: myUid),
+                      transitionsBuilder: (_, animation, __, child) {
+                        return SlideTransition(
+                          position:
+                              Tween(begin: Offset(0, 1), end: Offset(0, 0))
+                                  .animate(CurvedAnimation(
+                                      parent: animation,
+                                      curve: Curves.easeOutCubic)),
+                          child: child,
+                        );
+                      },
+                    ));
+              },
+              settingsMenu: () {
+                return Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => SettingsPage(
+                              username: "",
+                              email: '',
+                            )));
+              },
+              // when joystick search icon pressed, focus the friend search field
+              friendSearchBar: () async {
+                try {
+                  friendSearchFocusNode.requestFocus();
+                } catch (_) {}
+                return true;
+              },
             ),
-          ),
-          Text(
-            "${(percent * 100).toInt()}%",
-            style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14.0,
-                color: Colors.white),
           ),
         ],
       ),
-      SizedBox(height: 6),
-      Text(
-        title,
-        style: TextStyle(color: Colors.white70, fontSize: 13),
-      ),
-      Text(
-        amount,
-        style: TextStyle(
-            color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-      ),
-    ],
-  );
-}
-
-// For animated total balance
-class AnimatedBalance extends StatefulWidget {
-  final double balance;
-  final TextStyle style;
-  final Duration duration;
-  const AnimatedBalance(
-      {required this.balance,
-      required this.style,
-      this.duration = const Duration(seconds: 2),
-      Key? key})
-      : super(key: key);
-  @override
-  State<AnimatedBalance> createState() => _AnimatedBalanceState();
-}
-
-class _AnimatedBalanceState extends State<AnimatedBalance>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: widget.duration);
-    _animation = Tween<double>(begin: 0, end: widget.balance)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _controller.forward();
+    );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  /// Search bar for existing friends
+  Widget _friendSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        focusNode: friendSearchFocusNode,
+        controller: friendSearchController,
+        onChanged: (value) => setState(() => friendSearchText = value.trim()),
+        decoration: InputDecoration(
+          hintText: "Search friends...",
+          hintStyle: const TextStyle(color: Colors.white38),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(Icons.search, color: Colors.blueAccent, size: 22),
+          ),
+          filled: true,
+          fillColor: const Color(0xFF1F2937),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.white12, width: 1),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.white12, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Text(
-          '€${_animation.value.toStringAsFixed(2)}',
-          style: widget.style,
+  /// Helper to get last message from chat
+
+  /// Existing friends list
+  Widget _friendList() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream:
+          FirebaseFirestore.instance.collection("users").doc(myUid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.blueAccent),
+          );
+        }
+
+        final myData = snapshot.data!.data() as Map<String, dynamic>;
+        final friends = List<String>.from(myData["friends"] ?? []);
+
+        if (friends.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.people_outline,
+                    size: 80, color: Colors.blueAccent.withOpacity(0.4)),
+                const SizedBox(height: 16),
+                Text(
+                  "No friends yet",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Tap the + button to add friends",
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+          itemCount: friends.length,
+          itemBuilder: (context, index) {
+            final friendUid = friends[index].toString().trim();
+
+            if (friendUid.isEmpty) return const SizedBox();
+
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection("users")
+                  .doc(friendUid)
+                  .get(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox();
+
+                final user =
+                    snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                final username = (user["username"] ?? '').toString();
+
+                if (!username
+                    .toLowerCase()
+                    .contains(friendSearchText.toLowerCase())) {
+                  return const SizedBox();
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF1F2937),
+                          const Color(0xFF111827),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                      border: Border.all(color: Colors.white10, width: 1),
+                    ),
+                    child: InkWell(
+                      onTap: () async {
+                        final chatRoomId = await ChatService()
+                            .createChatRoom(myUid, friendUid);
+
+                        // ✅ Mark messages as read here
+                        await ChatService().markMessagesAsRead(
+                          myUid: myUid,
+                          friendUid: friendUid,
+                        );
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SmallStory(
+                              chatRoomId: chatRoomId,
+                              myId: myUid,
+                            ),
+                          ),
+                        );
+                      },
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        leading: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: Colors.blueAccent,
+                              child: Text(
+                                username[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            // online indicator dot
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: StreamBuilder(
+                                stream: FirebaseDatabase.instance
+                                    .ref("status/$friendUid")
+                                    .onValue,
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData)
+                                    return const SizedBox();
+
+                                  final data =
+                                      snapshot.data!.snapshot.value as Map?;
+                                  final status = data?["state"] ?? "offline";
+
+                                  return Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: status == "online"
+                                          ? Colors.greenAccent
+                                          : Colors.grey,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: Colors.black87, width: 1.5),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        title: Text(
+                          username,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: StreamBuilder(
+                          stream: FirebaseDatabase.instance
+                              .ref("status/$friendUid")
+                              .onValue,
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const SizedBox();
+
+                            final data = snapshot.data!.snapshot.value as Map?;
+                            final status = data?["state"] ?? "offline";
+
+                            return Text(
+                              status == 'online' ? 'Online' : 'Offline',
+                              style: TextStyle(
+                                color: status == 'online'
+                                    ? Colors.greenAccent.withOpacity(0.8)
+                                    : Colors.white38,
+                                fontSize: 12,
+                              ),
+                            );
+                          },
+                        ),
+                        trailing: StreamBuilder<int>(
+                          stream: ChatService().unreadCountStream(
+                            myUid: myUid,
+                            friendUid: friendUid,
+                          ),
+                          builder: (context, snap) {
+                            final n = snap.data ?? 0;
+                         if (n <= 0) return const SizedBox.shrink();
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                n > 99 ? '99+' : n.toString(),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
   }
-}
 
-Widget _buildMySpendingCard(BuildContext context) {
-  return Container(
-    padding: EdgeInsets.all(5),
-    width: double.infinity,
-    margin: EdgeInsets.only(
-      left: 15,
-      right: 15,
-    ),
-   height: 480,
-    decoration: BoxDecoration(
-      color: kPrimaryColor.withOpacity(0.85),
-      borderRadius: BorderRadius.circular(20),
-      boxShadow: [
-        BoxShadow(
-          color: kPurpleGradientEnd.withOpacity(0.5),
-          blurRadius: 24,
-          offset: Offset(0, 8),
-        ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Total Balance',
-              style: TextStyle(
-                color: kTextColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            AnimatedBalance(
-              balance: 1532.00,
-              style: TextStyle(
-                color: Colors.cyanAccent,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 14),
-        Container(
-          width: double.infinity,
-          height: 10,
-          decoration: BoxDecoration(
-            color: Colors.cyanAccent.withOpacity(0.18),
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: 0.65, // 65% fill
-              child: Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [kPurpleGradientStart, Colors.cyanAccent],
-                  ),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 18),
-        // Nested: Dreamy Indigo & Purple + Financial Dashboard
-        Container(
-          height: 200,
-          margin: EdgeInsets.only(top: 0, left: 0, right: 0, bottom: 0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white.withOpacity(0.05),
-            boxShadow: [
-              BoxShadow(
-                color: kPurpleGradientEnd.withOpacity(.9),
-                blurRadius: 24,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              'Dreamy Indigo & Purple',
-              style: TextStyle(
-                color: kTextColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-              ),
-            ),
-          ),
-        ),
+  /// Show Add Friend dialog
+  void _showAddFriendDialog() {
+    final TextEditingController addController = TextEditingController();
 
-        Container(
-          height: 150,
-          margin: EdgeInsets.only(top: 20),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+      builder: (_) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 350),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 25,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildFinancialCard(
-                context,
-                'Incoming',
-                '€35k',
-                0.45,
-                Colors.cyan,
-              ),
-              _buildFinancialCard(
-                context,
-                'Outgoing',
-                '€25k',
-                0.20,
-                Colors.pinkAccent,
-              ),
-              _buildFinancialCard(
-                context,
-                'Savings',
-                '€10k',
-                0.10,
-                Colors.lightBlueAccent,
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildRecentTransactions() {
-  return Container(
-    height: 230,
-    margin: EdgeInsets.only(left: 20, right: 20, bottom: 20),
-    decoration: BoxDecoration(
-      gradient: LinearGradient(colors: [kBackgroundColor, kBackgroundColor]),
-      borderRadius: BorderRadius.circular(20),
-      color: Colors.white.withOpacity(0.5),
-      boxShadow: [
-        BoxShadow(
-          color: kPurpleGradientEnd.withOpacity(0.5),
-          blurRadius: 24,
-          offset: Offset(0, 8),
-        ),
-      ],
-    ),
-    child: Column(
-      children: [
-        Container(
-          height: 2,
-          width: double.infinity,
-          color: Colors.white.withOpacity(0.3),
-        ),
-        Container(
-          constraints: BoxConstraints(minHeight: 120, maxHeight: 180),
-          width: double.infinity,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: kPrimaryColor.withOpacity(0.85),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: kPurpleGradientEnd.withOpacity(0.18),
-                blurRadius: 24,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              double barWidth = constraints.maxWidth * 0.35;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'My Spending',
-                        style: TextStyle(
-                          color: kTextColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      Text(
-                        'See more',
-                        style: TextStyle(
-                          color: Colors.cyanAccent,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('This Week',
-                              style:
-                                  TextStyle(color: kTextColor, fontSize: 15)),
-                          SizedBox(height: 6),
-                          Container(
-                            width: barWidth,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: Colors.pinkAccent.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: FractionallySizedBox(
-                                widthFactor: 0.35, // 35% progress
-                                child: Container(
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: Colors.pinkAccent,
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text('€87.25',
-                          style: TextStyle(
-                              color: kTextColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('This Month',
-                              style:
-                                  TextStyle(color: kTextColor, fontSize: 15)),
-                          SizedBox(height: 6),
-                          Container(
-                            width: barWidth,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: Colors.cyanAccent.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: FractionallySizedBox(
-                                widthFactor: 0.75, // 75% progress
-                                child: Container(
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: Colors.cyanAccent,
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text('€206.76',
-                          style: TextStyle(
-                              color: kTextColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        // Recent Transactions Area
-        Container(
-          height: 600,
-          margin: EdgeInsets.symmetric(vertical: 8),
-          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-          decoration: BoxDecoration(
-            color: kPrimaryColor.withOpacity(0.85),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: kPurpleGradientEnd.withOpacity(0.18),
-                blurRadius: 24,
-                offset: Offset(0, 8),
-              ),
-            ],
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF1E1E1E).withOpacity(0.95),
+                const Color(0xFF121212).withOpacity(0.95),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: Colors.white10),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Recent Transactions',
-                    style: TextStyle(
-                      color: kTextColor,
-                      fontWeight: FontWeight.bold,
-                    ),
+              /// Title
+              Text("Add New Friend",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      letterSpacing: 0.5,
+                      fontWeight: FontWeight.w600)),
+
+              const SizedBox(height: 20),
+
+              /// Input Field
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: TextField(
+                  controller: addController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Enter username...",
+                    hintStyle: const TextStyle(color: Colors.white54),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    border: InputBorder.none,
                   ),
-                  Row(
-                    children: [
-                      Text(
-                        'Arrange',
-                        style: TextStyle(
-                          color: Colors.cyanAccent,
-                          fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              /// Buttons Row
+              Row(
+                children: [
+                  /// Cancel Button
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
+                        child: const Text("Cancel",
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 16)),
                       ),
-                      Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Colors.cyanAccent,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  /// Add Friend Button
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        String username = addController.text.trim();
+
+                        if (username.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text("Enter a username")));
+                          return;
+                        }
+
+                        final query = await FirebaseFirestore.instance
+                            .collection("users")
+                            .where("username", isEqualTo: username)
+                            .get();
+
+                        if (query.docs.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("User not found")));
+                          return;
+                        }
+
+                        final friendUid = query.docs.first.id;
+
+                        if (friendUid == myUid) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text("Cannot add yourself")));
+                          return;
+                        }
+
+                        final users =
+                            FirebaseFirestore.instance.collection("users");
+
+                        // Fetch both docs to check current state
+                        final myDoc = await users.doc(myUid).get();
+                        final friendDoc = await users.doc(friendUid).get();
+
+                        final myData = myDoc.data() ?? {};
+                        final friendData = friendDoc.data() ?? {};
+
+                        final myFriends =
+                            List<String>.from(myData["friends"] ?? []);
+                        final myPendingSent =
+                            List<String>.from(myData["pendingSent"] ?? []);
+                        final friendPending = List<String>.from(
+                            friendData["pendingRequests"] ?? []);
+
+                        if (myFriends.contains(friendUid)) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Already friends")));
+                          return;
+                        }
+
+                        if (myPendingSent.contains(friendUid) ||
+                            friendPending.contains(myUid)) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text("Request already pending")));
+                          return;
+                        }
+
+                        // Add to recipient's pendingRequests and my pendingSent
+                        await users.doc(friendUid).update({
+                          "pendingRequests": FieldValue.arrayUnion([myUid])
+                        });
+
+                        await users.doc(myUid).update({
+                          "pendingSent": FieldValue.arrayUnion([friendUid])
+                        });
+
+                        Navigator.pop(context); // close popup
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text("Friend request sent to $username")),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Colors.blueAccent, Colors.lightBlue],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Text("Add Friend",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600)),
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
-              SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Description',
-                      style: TextStyle(
-                        color: kTextColor,
-                        fontWeight: FontWeight.bold,
-                      )),
-                  Text('Arrange V',
-                      style: TextStyle(
-                        color: kTextColor,
-                        fontWeight: FontWeight.bold,
-                      )),
-                ],
-              ),
-              SizedBox(height: 14),
-              // Transaction Card 1
-              Container(
-                margin: EdgeInsets.only(bottom: 12),
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                decoration: BoxDecoration(
-                  color: kSurfaceColor.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.pinkAccent.withOpacity(0.2),
-                      child: Icon(
-                        Icons.fastfood,
-                        color: Colors.pinkAccent,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Domino\'s Pizza',
-                              style: TextStyle(
-                                color: kTextColor,
-                                fontWeight: FontWeight.bold,
-                              )),
-                          Text('18:45 06.01.19',
-                              style: TextStyle(
-                                color: kTextColor.withOpacity(0.7),
-                              )),
-                        ],
-                      ),
-                    ),
-                    Text('-€32.00',
-                        style: TextStyle(
-                          color: Colors.pinkAccent,
-                          fontWeight: FontWeight.bold,
-                        )),
-                  ],
-                ),
-              ),
-              // Transaction Card 2
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                decoration: BoxDecoration(
-                  color: kSurfaceColor.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.cyanAccent.withOpacity(0.2),
-                      child: Icon(
-                        Icons.home,
-                        color: Colors.cyanAccent,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Rent',
-                              style: TextStyle(
-                                color: kTextColor,
-                                fontWeight: FontWeight.bold,
-                              )),
-                          Text('16:55 05.01.19',
-                              style: TextStyle(
-                                color: kTextColor.withOpacity(0.7),
-                              )),
-                        ],
-                      ),
-                    ),
-                    Text('€1500.00',
-                        style: TextStyle(
-                          color: Colors.cyanAccent,
-                          fontWeight: FontWeight.bold,
-                        )),
-                  ],
-                ),
-              ),
+
+              const SizedBox(height: 10),
             ],
           ),
-        ),
-      ],
-    ),
-  );
+        );
+      },
+    );
+  }
 }

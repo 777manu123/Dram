@@ -4,7 +4,7 @@ class AnimatedBalance extends StatefulWidget {
   final double balance;
   final TextStyle style;
   final Duration duration;
-  const AnimatedBalance({required this.balance, required this.style, this.duration = const Duration(seconds: 2), Key? key}) : super(key: key);
+  const AnimatedBalance({required this.balance, required this.style, this.duration = const Duration(seconds: 2), super.key});
   @override
   State<AnimatedBalance> createState() => _AnimatedBalanceState();
 }

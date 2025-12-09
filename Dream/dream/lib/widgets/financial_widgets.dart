@@ -10,8 +10,8 @@ class FinancialCard extends StatelessWidget {
     required this.amount,
     required this.percent,
     required this.color,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
